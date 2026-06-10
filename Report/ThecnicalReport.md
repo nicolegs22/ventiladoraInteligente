@@ -2,6 +2,7 @@
 
 > **Sistema IoT con AWS y Alexa**
 > Carrera: Ingeniería de Sistemas · Asignatura: SIS-234
+> **Participantes:** Gabriel Herrera · Nicole Gomez · Fernando Rodríguez
 
 Prototipo de un **ventilador inteligente** basado en un microcontrolador **ESP32** integrado a **AWS IoT Core** mediante **Device Shadows**, controlado por voz a través de **Amazon Alexa**, con almacenamiento de datos en **DynamoDB** y visualización en un **dashboard** elaborado con Jupyter Notebook.
 
@@ -18,6 +19,7 @@ Prototipo de un **ventilador inteligente** basado en un microcontrolador **ESP32
   - [4.1 Componentes](#41-componentes)
   - [4.2 Diagrama del circuito](#42-diagrama-del-circuito)
   - [4.3 Conexiones (pinout)](#43-conexiones-pinout)
+  - [4.4 Prototipo construido](#44-prototipo-construido)
 - [5. Firmware del ESP32](#5-firmware-del-esp32)
   - [5.1 Estructura del código](#51-estructura-del-código)
   - [5.2 Módulos](#52-módulos)
@@ -30,9 +32,10 @@ Prototipo de un **ventilador inteligente** basado en un microcontrolador **ESP32
   - [7.2 Backend (AWS Lambda)](#72-backend-aws-lambda)
 - [8. Procesamiento y almacenamiento en la nube](#8-procesamiento-y-almacenamiento-en-la-nube)
 - [9. Reportes y dashboard](#9-reportes-y-dashboard)
-- [10. Cómo ejecutar el proyecto](#10-cómo-ejecutar-el-proyecto)
-- [11. Estructura del repositorio](#11-estructura-del-repositorio)
-- [12. Trabajo futuro](#12-trabajo-futuro)
+- [10. Diagramas del sistema](#10-diagramas-del-sistema)
+- [11. Modelo de interacción de Alexa (configuración JSON)](#11-modelo-de-interacción-de-alexa-configuración-json)
+- [Anexo A. Diagramas verificados contra el código fuente](#anexo-a-diagramas-verificados-contra-el-código-fuente)
+- [Anexo B. Configuración completa de Alexa](#anexo-b-configuración-completa-de-alexa)
 
 ---
 
@@ -153,6 +156,14 @@ flowchart LR
 
 > [!IMPORTANT]
 > El motor se alimenta con **12 V** a través del driver; el ESP32 y los sensores trabajan a **3.3 V / 5 V**. La señal PWM se genera en el canal `0` a **5 kHz** con resolución de **8 bits**.
+
+### 4.4 Prototipo construido
+
+El dispositivo se montó en una carcasa de **MDF cortada a láser** con ensamble por encastres. En la cara superior se ubican el **potenciómetro**, la **pantalla OLED** y el **interruptor de encendido**; el **motor DC** con la hélice impresa en 3D se monta sobre la torre frontal, y el **ESP32** con su cableado queda alojado en la base.
+
+| Vista frontal | Motor y hélice | Interior (ESP32) |
+| :---: | :---: | :---: |
+| ![Prototipo — vista frontal](Anex/1.jpeg) | ![Prototipo — motor y hélice](Anex/2.jpeg) | ![Prototipo — cableado interno](Anex/3.jpeg) |
 
 ---
 
@@ -387,170 +398,20 @@ Estos reportes permiten **tomar decisiones** sobre el comportamiento térmico de
 
 ---
 
-## 10. Cómo ejecutar el proyecto
-
-### Firmware (ESP32)
-
-1. Instalar el **ESP32 Arduino Core** y las librerías: `PubSubClient`, `ArduinoJson`, `DHT sensor library`, `Adafruit SSD1306`, `Adafruit GFX`.
-2. Configurar en [main.cpp](../SourceCode/Src/main.cpp) las credenciales Wi-Fi, el `endpoint` de AWS IoT y los certificados X.509.
-3. Compilar y cargar el firmware en el ESP32.
-
-### Backend de Alexa (Lambda)
-
-1. Crear la función Lambda con el código de [lambda.py](../SourceCode/Lambda/lambda.py) y el runtime de Python con `ask-sdk-core`.
-2. Asignar permisos IAM para `iot:GetThingShadow`, `iot:UpdateThingShadow` y acceso a DynamoDB.
-3. Vincular la función como *endpoint* de la skill en la Alexa Developer Console.
-
-### Dashboard
-
-```bash
-pip install pandas numpy matplotlib jupyter
-jupyter notebook SourceCode/scriptDashboard/script.ipynb
-```
-
----
-
-## 11. Estructura del repositorio
-
-```text
-ventiladoraInteligente/
-├── README.md
-├── Report/
-│   ├── ThecnicalReport.md          # Este documento
-│   └── Anex/
-│       └── Circuit Diagram.jpeg    # Diagrama del circuito
-└── SourceCode/
-    ├── Src/                        # Firmware del ESP32 (C++)
-    ├── Lambda/
-    │   └── lambda.py               # Backend de la skill de Alexa
-    └── scriptDashboard/
-        ├── script.ipynb            # Generación del dashboard
-        └── results (5).csv         # Datos exportados de DynamoDB
-```
-
----
-
-## 12. Trabajo futuro
-
-- [ ] Migrar la conexión Wi-Fi a un **portal cautivo** con la librería `WiFiManager` para parametrizar la red sin recompilar.
-- [ ] Añadir niveles intermedios de velocidad en el modo automático (control proporcional según la temperatura).
-- [ ] Migrar el dashboard a **Amazon QuickSight** para visualización en tiempo real.
-- [ ] Gestionar los certificados y credenciales mediante **variables de entorno o AWS Secrets Manager** en lugar de incluirlos en el código.
-
----
-
-## 13. Diagramas del sistema
+## 10. Diagramas del sistema
 
 Esta sección reúne los diagramas **UML** y de **bloques** derivados directamente del código fuente del repositorio (firmware del ESP32 en `SourceCode/Src/` y backend de Alexa en `SourceCode/Lambda/`).
 
-### 13.1 Diagrama de clases — Firmware (ESP32)
+### 10.1 Diagrama de clases — Firmware (ESP32)
 
 Refleja las clases del firmware C++ y sus relaciones. `AWSShadow` agrega por referencia a `Motor`, `Sensor` y `Display`; `main` (punto de entrada con `setup()`/`loop()`) instancia y orquesta todos los módulos.
 
-```mermaid
-classDiagram
-    class main {
-        <<entry point>>
-        +setup()
-        +loop()
-        +rangeToSpeed(range) int
-    }
-
-    class WiFiManager {
-        -const char* ssid_
-        -const char* password_
-        +WiFiManager(ssid, pass)
-        +connect(timeoutMs) bool
-        +isConnected() bool
-        +localIP() String
-    }
-
-    class Sensor {
-        -DHT dht_
-        +Sensor(pin, type)
-        +begin()
-        +readTemperature() float
-        +readHumidity() float
-    }
-
-    class Motor {
-        -uint8_t in1_
-        -uint8_t ena_
-        -uint8_t pwmChannel_
-        -int targetPercent_
-        -int speedPWM_
-        -bool shadowChanged_
-        +Motor(in1, ena, pwmChannel, freq, resolution)
-        +begin()
-        +setSpeedFromShadow(percent)
-        +setLocalSpeed(percent)
-        +getSpeedPercent() int
-        +isShadowChanged() bool
-        +clearShadowChanged()
-        -updatePWM()
-    }
-
-    class Potentiometer {
-        -uint8_t pin_
-        -int numSamples$
-        +Potentiometer(pin)
-        +begin()
-        +readPercent() int
-    }
-
-    class Display {
-        -Adafruit_SSD1306 oled_
-        +Display(addr, sda, scl)
-        +begin() bool
-        +showNormal(temp, speed, hum, autoMode, threshold)
-        +showMessage(line1, line2, speed)
-    }
-
-    class AWSShadow {
-        -const char* thingName_
-        -const char* endpoint_
-        -int port_
-        -WiFiClientSecure net_
-        -PubSubClient mqtt_
-        -Motor& motor_
-        -Sensor& sensor_
-        -Display& display_
-        -bool autoMode_
-        -int tempThreshold_
-        -AWSShadow* instance_$
-        +String deltaTopic
-        +String getTopic
-        +String updateTopic
-        +String getAcceptedTopic
-        +AWSShadow(thingName, endpoint, port, certs, motor, sensor, display)
-        +connect() bool
-        +loop()
-        +requestShadowDocument()
-        +publishReported(temp, hum, speed)
-        +publishDesiredSpeed(speed)
-        +publishDesiredSettings(autoMode, threshold)
-        +getAutoMode() bool
-        +getTempThreshold() int
-        -mqttCallback(topic, payload, length)$
-        -handleDelta(json)
-        -handleFullDocument(json)
-    }
-
-    main ..> WiFiManager : usa
-    main ..> Sensor : usa
-    main ..> Motor : usa
-    main ..> Potentiometer : usa
-    main ..> Display : usa
-    main ..> AWSShadow : usa
-    AWSShadow o--> Motor : referencia
-    AWSShadow o--> Sensor : referencia
-    AWSShadow o--> Display : referencia
-```
+![Diagrama de clases del firmware (ESP32)](Anex/Class%20Diagram.png)
 
 > [!NOTE]
 > Los miembros marcados con `$` son **estáticos** (`AWSShadow::instance_` y `AWSShadow::mqttCallback`, necesarios porque `PubSubClient` exige un callback de función libre; y `Potentiometer::numSamples`).
 
-### 13.2 Diagrama de clases — Backend de Alexa (AWS Lambda)
+### 10.2 Diagrama de clases — Backend de Alexa (AWS Lambda)
 
 El backend (Python, `ask-sdk`) se organiza en *handlers* que heredan de las clases abstractas del SDK. Las funciones auxiliares (`ShadowHelpers`) encapsulan el acceso a DynamoDB y al Shadow.
 
@@ -600,35 +461,15 @@ classDiagram
 > [!NOTE]
 > Por claridad solo se dibujan algunas dependencias hacia `ShadowHelpers`, pero **todos los *IntentHandler*** que consultan o modifican el estado del ventilador la utilizan. Los *handlers* se registran en el `SkillBuilder` (`sb`) que expone `lambda_handler`.
 
-### 13.3 Diagramas de comportamiento
+### 10.3 Diagramas de comportamiento
 
-#### 13.3.1 Diagrama de secuencia — Comando por voz (Alexa → ESP32)
+#### 10.3.1 Diagrama de secuencia — Comando por voz (Alexa → ESP32)
 
 Flujo completo de un comando de voz que modifica la velocidad, desde el usuario hasta que el ESP32 aplica el cambio y reporta de vuelta.
 
-```mermaid
-sequenceDiagram
-    actor User as Usuario
-    participant Alexa as Alexa (voz)
-    participant Lambda as AWS Lambda (ask-sdk)
-    participant DDB as DynamoDB (user_thing)
-    participant Shadow as Device Shadow
-    participant ESP as ESP32 (AWSShadow)
+![Diagrama de comportamiento del sistema](Anex/Diagrama%20Comp.png)
 
-    User->>Alexa: "change the speed to 75"
-    Alexa->>Lambda: UpdateSpeedLevelIntent (slot speed=75)
-    Lambda->>DDB: get_item(user_id)
-    DDB-->>Lambda: thing_name = Esp32Ventilador
-    Lambda->>Lambda: valida 0 <= speed <= 100
-    Lambda->>Shadow: update_thing_shadow(desired.speed = 75)
-    Shadow-->>ESP: shadow/update/delta (speed=75)
-    ESP->>ESP: handleDelta() -> motor.setSpeedFromShadow(75)
-    ESP->>Shadow: shadow/update reported (speed=75)
-    Lambda-->>Alexa: "Speed updated to 75"
-    Alexa-->>User: respuesta de voz
-```
-
-#### 13.3.2 Diagrama de estados — Modos de operación
+#### 10.3.2 Diagrama de estados — Modos de operación
 
 El dispositivo alterna entre **modo manual** (potenciómetro) y **modo automático** (control por temperatura) según el valor de `autoMode` recibido por el Shadow.
 
@@ -656,7 +497,7 @@ stateDiagram-v2
     Automatico --> Manual: delta autoMode=false
 ```
 
-#### 13.3.3 Diagrama de actividad — Ciclo principal `loop()`
+#### 10.3.3 Diagrama de actividad — Ciclo principal `loop()`
 
 Representa la lógica del `loop()` en [main.cpp](../SourceCode/Src/main.cpp): mantenimiento de la conexión, control manual/automático, refresco de pantalla y publicación inteligente del estado.
 
@@ -689,7 +530,7 @@ flowchart TD
     O --> A
 ```
 
-### 13.4 Diagrama de bloques
+### 10.4 Diagrama de bloques
 
 Descomposición funcional del sistema en bloques, mostrando cómo los módulos del firmware se agrupan en capas de **entrada**, **procesamiento (Edge)**, **comunicación** y **salida**, y su relación con los bloques de **nube** y **frontend**.
 
@@ -742,11 +583,11 @@ flowchart TB
 
 ---
 
-## 14. Modelo de interacción de Alexa (configuración JSON)
+## 11. Modelo de interacción de Alexa (configuración JSON)
 
 El *frontend* de voz se define en la **Alexa Developer Console** mediante un **modelo de interacción** en formato JSON. El nombre de invocación de la skill es **`fan controller`**, y cada *intent* declara las frases de ejemplo (*samples*) y, cuando aplica, los *slots* que captura.
 
-### 14.1 Resumen de intents y slots
+### 11.1 Resumen de intents y slots
 
 | Intent | Slot (tipo) | Frases de ejemplo |
 | --- | --- | --- |
@@ -760,7 +601,7 @@ El *frontend* de voz se define en la **Alexa Developer Console** mediante un **m
 | `GetTempThresholdIntent` | — | *"threshold"* |
 | `GetAllValuesIntent` | — | *"report"*, *"give me the state"* |
 
-### 14.2 Definición JSON del modelo de interacción
+### 11.2 Definición JSON del modelo de interacción
 
 ```json
 {
@@ -848,8 +689,216 @@ El *frontend* de voz se define en la **Alexa Developer Console** mediante un **m
 ```
 
 > [!NOTE]
-> Cada *intent* del modelo se corresponde con un *handler* del backend descrito en la [sección 13.2](#132-diagrama-de-clases--backend-de-alexa-aws-lambda). Los *slots* (`speed`, `threshold`, `autoaction`) son los valores que la Lambda lee de `request.intent.slots` para validar y escribir en `state.desired` del Shadow.
+> Cada *intent* del modelo se corresponde con un *handler* del backend descrito en la [sección 10.2](#102-diagrama-de-clases--backend-de-alexa-aws-lambda). Los *slots* (`speed`, `threshold`, `autoaction`) son los valores que la Lambda lee de `request.intent.slots` para validar y escribir en `state.desired` del Shadow.
 
 ---
 
 > Proyecto desarrollado para la asignatura **SIS-234** — Ingeniería de Sistemas.
+
+---
+
+## Anexo A. Diagramas verificados contra el código fuente
+
+Los siguientes diagramas complementarios fueron contrastados con
+`SourceCode/Src/` y `SourceCode/Lambda/lambda.py`. Se incluyen como Mermaid
+para que permanezcan versionables dentro del propio reporte.
+
+### A.1 Diagrama de clases del firmware
+
+![Diagrama de clases del firmware (ESP32)](Anex/Class%20Diagram.png)
+
+### A.2 Diagrama de comportamiento
+
+Este diagrama representa el comportamiento efectivo de `loop()`. Tanto el
+modo manual como el automático escriben primero `desired.speed`; el motor
+aplica el valor cuando AWS IoT entrega el mensaje `delta`.
+
+![Diagrama de comportamiento del sistema](Anex/Diagrama%20Comp.png)
+
+### A.3 Diagrama de bloques del sistema
+
+```mermaid
+flowchart LR
+    subgraph HW["Hardware"]
+        DHT["DHT11"]
+        POT["Potenciometro"]
+        DRIVER["Driver L298N"]
+        FAN["Motor DC"]
+        OLED["OLED SSD1306"]
+    end
+
+    subgraph EDGE["ESP32 / Edge"]
+        SENSOR["Sensor"]
+        POTCLASS["Potentiometer"]
+        MAIN["main.cpp<br/>control manual y automatico"]
+        MOTOR["Motor<br/>PWM 5 kHz"]
+        DISPLAY["Display"]
+        WIFI["WiFiManager"]
+        SHADOWCLIENT["AWSShadow<br/>MQTT/TLS"]
+    end
+
+    subgraph AWS["AWS Cloud"]
+        IOT[("AWS IoT Core<br/>Device Shadow")]
+        RULE["AWS IoT Rule"]
+        HISTORY[("DynamoDB<br/>historico")]
+        USERS[("DynamoDB<br/>user_thing")]
+        LAMBDA["AWS Lambda<br/>ask-sdk"]
+    end
+
+    subgraph UI["Interfaces"]
+        USER["Usuario"]
+        ALEXA["Alexa Skill"]
+        CSV["CSV exportado"]
+        DASH["Jupyter Dashboard"]
+    end
+
+    DHT --> SENSOR --> MAIN
+    POT --> POTCLASS --> MAIN
+    MAIN --> MOTOR --> DRIVER --> FAN
+    MAIN --> DISPLAY --> OLED
+    WIFI --> SHADOWCLIENT
+    MAIN <--> SHADOWCLIENT
+    SHADOWCLIENT <-->|MQTT/TLS 8883| IOT
+
+    USER <--> ALEXA <--> LAMBDA
+    LAMBDA --> USERS
+    LAMBDA <-->|IoT Data API| IOT
+
+    IOT --> RULE --> HISTORY --> CSV --> DASH
+```
+
+## Anexo B. Configuración completa de Alexa
+
+El siguiente documento usa la estructura importable de **Alexa Developer
+Console**. Los nombres de intents coinciden con los handlers de
+`SourceCode/Lambda/lambda.py`. El slot se denomina `autoAction` porque los
+nombres son sensibles a mayúsculas y minúsculas y así se consulta en la
+Lambda.
+
+```json
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "fan controller",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "HelloIntent",
+          "slots": [],
+          "samples": [
+            "hello",
+            "say hello"
+          ]
+        },
+        {
+          "name": "GetTemperatureIntent",
+          "slots": [],
+          "samples": [
+            "temperature",
+            "what is the temperature",
+            "give me the temperature"
+          ]
+        },
+        {
+          "name": "GetHumidityIntent",
+          "slots": [],
+          "samples": [
+            "humidity",
+            "what is the humidity",
+            "give me the humidity"
+          ]
+        },
+        {
+          "name": "GetSpeedLevelIntent",
+          "slots": [],
+          "samples": [
+            "speed",
+            "what is the fan speed",
+            "tell me the current speed"
+          ]
+        },
+        {
+          "name": "GetAllValuesIntent",
+          "slots": [],
+          "samples": [
+            "report",
+            "give me the state",
+            "give me the complete status"
+          ]
+        },
+        {
+          "name": "UpdateSpeedLevelIntent",
+          "slots": [
+            {
+              "name": "speed",
+              "type": "AMAZON.NUMBER"
+            }
+          ],
+          "samples": [
+            "change the speed to {speed}",
+            "set the speed to {speed}",
+            "put the fan at {speed}"
+          ]
+        },
+        {
+          "name": "SetAutoModeIntent",
+          "slots": [
+            {
+              "name": "autoAction",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "set automatic mode to {autoAction}",
+            "set auto mode to {autoAction}"
+          ]
+        },
+        {
+          "name": "GetAutoModeIntent",
+          "slots": [],
+          "samples": [
+            "automatic mode state",
+            "is automatic mode enabled",
+            "tell me the automatic mode"
+          ]
+        },
+        {
+          "name": "SetTempThresholdIntent",
+          "slots": [
+            {
+              "name": "threshold",
+              "type": "AMAZON.NUMBER"
+            }
+          ],
+          "samples": [
+            "set the threshold to {threshold}",
+            "change the temperature threshold to {threshold}",
+            "threshold {threshold}"
+          ]
+        },
+        {
+          "name": "GetTempThresholdIntent",
+          "slots": [],
+          "samples": [
+            "threshold",
+            "what is the temperature threshold",
+            "tell me the threshold"
+          ]
+        }
+      ],
+      "types": []
+    }
+  }
+}
+```
